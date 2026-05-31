@@ -45,9 +45,8 @@ SDR_LBJ_RECEIVER 是一个基于 RTL-SDR / rtl_tcp 的 POCSAG / LBJ 信号学习
 
 推荐环境：
 
-- Android Termux + Python 3
-- Windows / Linux + Python 3
-- rtl_tcp 数据源
+- Android Termux + Python 3 + Rtl-sdr driver
+- Windows / Linux + Python 3 + rtl-sdr驱动
 - RTL-SDR 兼容接收设备
 
 Python 依赖：
@@ -62,37 +61,97 @@ pip install numpy scipy
 python3 sdr_lbj.py -f 821.2375 -g 15.7 -p 1
 ```
 
-常用参数：
+## 启动参数
 
-```bash
-python3 sdr_lbj.py -f 821.2375 --cs-threshold -55
-python3 sdr_lbj.py -f 821.2375 --bw 19.5
-python3 sdr_lbj.py -f 821.2375 --afc-gain 0.25
-python3 sdr_lbj.py -f 821.2375 --no-rssi-gate
+基本启动：
+
+```
+python3 sdr_lbj.py -f 821.2375
 ```
 
-多线路公里标设置示例：
+### 常用参数
 
-```bash
-python3 sdr_lbj.py -f 821.2375 --route-km 京沪线=0123.4KM --route-km 沪昆线=0456.7KM
+| 参数               |        默认值 | 说明                      |
+| ---------------- | ---------: | ----------------------- |
+| `-f, --freq`     | `821.2375` | 接收频率，单位 MHz             |
+| `-g, --gain`     |     `15.7` | RTL-SDR 增益，单位 dB        |
+| `-p, --ppm`      |        `1` | RTL-SDR PPM 校正          |
+| `--dc-offset`    |       `50` | DC 避让偏移，单位 kHz          |
+| `--bw`           |     `19.5` | 信道滤波带宽，单位 kHz           |
+| `--cs-threshold` |      `-55` | RSSI 接收门控阈值，单位 dB       |
+| `--rssi-hold-ms` |      `700` | RSSI 低于释放门限后的保持时间，单位 ms |
+| `--afc-max`      |     `1500` | AFC 最大修正范围，单位 Hz        |
+| `--afc-gain`     |     `0.45` | AFC 环路增益                |
+| `--my-km`        |          无 | 默认当前位置公里标，单位 km         |
+| `--route-km`     |          无 | 按线路设置当前位置公里标            |
+| `--eta-max-min`  |      `360` | 最大显示到达时间，单位分钟           |
+
+### 开关参数
+
+| 参数                        | 说明             |
+| ------------------------- | -------------- |
+| `--no-dc-offset`          | 关闭 DC 避让       |
+| `--no-rssi-gate`          | 关闭 RSSI 接收门控   |
+| `--afc-off`               | 关闭 AFC         |
+| `--keep-afc-after-packet` | 接收结束后保留 AFC 补偿 |
+
+### 多线路公里标
+
+格式：
+
+```
+--route-km 线路名=xxxx.xKM
 ```
 
-也可以在程序运行后按 `K` 设置当前线路或指定线路的本站公里标。
+示例：
 
-## 快捷键
+```
+python3 sdr_lbj.py -f 821.2375 --route-km 京沪线=0123.4KM
+```
 
-- `T`：修改接收频率
-- `G`：修改增益
-- `P`：修改 PPM
-- `R`：修改 RSSI 门控阈值
-- `K`：设置线路位置 / 本站公里标
-- `F`：设置关注车次或机车过滤
-- `B`：错包拦截开关
-- `W`：错包/干扰预警开关
-- `M`：过滤显示模式切换
-- `C`：清空当前显示
-- `H`：打开或关闭帮助菜单
-- `Q`：退出程序
+多线路可以重复填写：
+
+```
+python3 sdr_lbj.py -f 821.2375 \
+  --route-km 京沪线=0123.4KM \
+  --route-km 沪昆线=0456.7KM
+```
+
+### 到达时间规则
+
+下行：公里标增大
+上行：公里标减小
+
+只有无误码或 BCH 可纠正后的可靠数据才参与线路提取和到达时间计算。
+
+### 运行时按键
+
+| 按键  | 功能           |
+| --- | ------------ |
+| `T` | 修改频率         |
+| `G` | 修改增益         |
+| `P` | 修改 PPM       |
+| `R` | 修改 RSSI 门控阈值 |
+| `K` | 设置当前线路公里标    |
+| `F` | 设置关注车次或机车    |
+| `B` | 开关错包拦截       |
+| `W` | 开关干扰预警       |
+| `M` | 切换过滤模式       |
+| `C` | 清屏           |
+| `H` | 菜单           |
+| `Q` | 退出           |
+
+### 调参建议
+
+| 现象            | 建议                              |
+| ------------- | ------------------------------- |
+| 一直显示 `RX:OFF` | 降低 `--cs-threshold`             |
+| 包中间断开         | 增大 `--rssi-hold-ms`             |
+| AFC 经常到最大值    | 降低 `--afc-gain` 或增大 `--afc-max` |
+| DC 尖峰明显       | 增大 `--dc-offset`                |
+| 附近干扰多         | 减小 `--bw`                       |
+| 频偏导致误码多       | 增大 `--bw` 或 `--afc-max`         |
+
 
 ## 到达时间估算说明
 
