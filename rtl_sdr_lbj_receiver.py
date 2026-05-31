@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SDR-LBJ
-# Copyright (C) 2026 <你的名字或GitHub ID>
+# Copyright (C) 2026 Sdr-Is-Fun
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -987,7 +987,7 @@ class LBJRealtimeDecoder:
         is_standalone = addr in (1234001, 1234002) and len(bcd) < 65
         base_train = None
         if is_short:
-            raw = bcd[0:5].strip()
+            raw = bcd[0:6].strip()
             if _g0['strict_filter']:
                 base_train = raw if re.match('^[A-Za-z0-9]+$', raw) else '----'
             else:
@@ -1154,11 +1154,11 @@ def _u7(src, frontend=None, rssi_gate=None):
             vc = '\x1b[91m' if hit else '\x1b[97m'
             dd = _g2['direction']
             ds = f'\x1b[44m {dd} \x1b[0m' if dd == '上行' else f'\x1b[42m {dd} \x1b[0m' if dd == '下行' else dd
-            v_train = _u3(_g2['train'], 10)
+            v_train = _u3(_g2['train'], 15)
             spd_val = _g2['speed']
-            v_speed = _u3(f'{spd_val}km/h' if spd_val != '---' else '---km/h', 10)
-            v_loco = _u3(_g2['loco'], 10)
-            v_route = _u3(_g2['route'], 10)
+            v_speed = _u3(f'{spd_val}km/h' if spd_val != '---' else '---km/h', 15)
+            v_loco = _u3(_g2['loco'], 15)
+            v_route = _u3(_g2['route'], 15)
             pos_val = _g2['position']
             v_pos = _u3(f'{pos_val}KM' if pos_val != '---.-' else '---.-KM', 10)
             v_code = _u3(_g2['loco_code'], 8)
@@ -1182,7 +1182,7 @@ def _u7(src, frontend=None, rssi_gate=None):
             v_eta = _u3(f'{eta_sec_txt} {eta_time_txt}', 15)
             v_mykm = _u3(route_km_text, 10)
             lines.append(f'\x1b[92m到达:\x1b[0m {vc}{v_eta}\x1b[0m \x1b[92m本站:\x1b[0m {vc}{v_mykm}\x1b[0m')
-            lines.append(f'\x1b[92m距离:\x1b[0m {vc}{_u3(eta_dist_txt, 10)}\x1b[0m \x1b[92m状态:\x1b[0m {vc}{eta_status}\x1b[0m')
+            lines.append(f'\x1b[92m距离:\x1b[0m {vc}{_u3(eta_dist_txt, 15)}\x1b[0m \x1b[92m状态:\x1b[0m {vc}{eta_status}\x1b[0m')
             lines.append(f'\x1b[92m机车:\x1b[0m {vc}{v_loco}\x1b[0m \x1b[92m代号:\x1b[0m {vc}{v_code}\x1b[0m')
             lines.append(f'\x1b[92m线路:\x1b[0m {vc}{v_route}\x1b[0m \x1b[92m类别:\x1b[0m {vc}{v_cat}\x1b[0m')
             lines.append('\x1b[90m' + '─' * 38 + '\x1b[0m')
