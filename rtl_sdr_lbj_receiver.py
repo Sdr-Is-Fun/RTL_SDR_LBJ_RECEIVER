@@ -27,8 +27,8 @@ HALFBAND_STAGES = 2
 MID_RATE = 240000
 BLOCK_SIZE = 65536
 DEFAULT_DC_OFFSET_HZ = 50000.0
-DEFAULT_BW_KHZ = 19.5
-DEFAULT_AFC_MAX_HZ = 1500.0
+DEFAULT_BW_KHZ = 35.0
+DEFAULT_AFC_MAX_HZ = 8000.0
 DEFAULT_RSSI_THRESHOLD_DB = -55.0
 DEFAULT_RSSI_HYST_DB = 4.0
 DEFAULT_RSSI_HOLD_MS = 700.0
@@ -1124,6 +1124,9 @@ def _u6(db_array, height=6):
     hold_ms = _g2.get('rssi_hold_ms', 0.0)
     rssi_lbl = f'RSSI:{rssi_v:.0f} 阈:{cs_v:.0f} RX:{gate_s} H:{hold_ms:.0f}'
     afc_lbl = f'FERR:{afc_err_v:+.0f} AFC:{afc_v:+.0f} S:{afc_s:.2f}'
+    peak_freq_hz = _g2.get('target_peak_freq_hz')
+    peak_delta_hz = _g2.get('target_peak_delta_hz')
+    peak_db = _g2.get('target_peak_db')
     lines.append(f'\x1b[96m {lbl}\x1b[0m')
     if rssi_v > cs_v:
         lines.append(f'\x1b[92m {rssi_lbl}\x1b[0m')
@@ -1133,6 +1136,11 @@ def _u6(db_array, height=6):
         lines.append(f'\x1b[96m {afc_lbl}\x1b[0m')
     else:
         lines.append(f'\x1b[90m {afc_lbl}\x1b[0m')
+    if peak_freq_hz is not None and peak_delta_hz is not None and peak_db is not None:
+        peak_lbl = f'PK:{peak_freq_hz / 1000000.0:.6f}M Δ:{peak_delta_hz / 1000.0:+.1f}k {peak_db:.0f}dB'
+        lines.append(f'\x1b[95m {peak_lbl}\x1b[0m')
+    else:
+        lines.append('\x1b[90m PK:---.------M Δ:---.-k ---dB\x1b[0m')
     return lines
 
 def _u7(src, frontend=None, rssi_gate=None):
@@ -1369,6 +1377,25 @@ def _u8(src, frontend, decoder, rssi_gate=None, reset_afc_on_release=True):
             chunk_sz = 1024 // _g3
             pooled = np.array([np.max(db[i * chunk_sz:(i + 1) * chunk_sz]) for i in range(_g3)])
             _g4['smoothed'] = 0.7 * _g4['smoothed'] + 0.3 * pooled
+
+            # 只在目标信号区域内查找最强频率，不影响后续解码链路。
+            freq_axis = np.fft.fftshift(np.fft.fftfreq(n, d=1.0 / float(src.sample_rate)))
+            hw_freq_hz = float(getattr(src, 'freq_hz', _g2.get('freq', 0.0) - _g2.get('dc_offset_hz', 0.0)))
+            target_freq_hz = float(_g2.get('freq', hw_freq_hz))
+            target_offset_hz = target_freq_hz - hw_freq_hz
+            target_bw_hz = max(1000.0, float(_g2.get('bw_khz', DEFAULT_BW_KHZ)) * 1000.0)
+            target_mask = (freq_axis >= target_offset_hz - target_bw_hz * 0.5) & (freq_axis <= target_offset_hz + target_bw_hz * 0.5)
+            if np.any(target_mask):
+                target_idx = np.where(target_mask)[0]
+                peak_idx = target_idx[int(np.argmax(db[target_idx]))]
+                peak_freq_hz = hw_freq_hz + float(freq_axis[peak_idx])
+                _g2['target_peak_freq_hz'] = peak_freq_hz
+                _g2['target_peak_delta_hz'] = peak_freq_hz - target_freq_hz
+                _g2['target_peak_db'] = float(db[peak_idx])
+            else:
+                _g2['target_peak_freq_hz'] = None
+                _g2['target_peak_delta_hz'] = None
+                _g2['target_peak_db'] = None
         pcm_float, avg_rssi, rx_active = frontend.process(iq, rssi_gate=rssi_gate)
         _g2['rssi'] = avg_rssi
         _g2['afc_hz'] = frontend.afc.afc_hz
@@ -1399,7 +1426,7 @@ def _u9():
     p.add_argument('-p', '--ppm', type=int, default=PPM, help='PPM 校正')
     p.add_argument('--dc-offset', type=float, default=DEFAULT_DC_OFFSET_HZ / 1000.0, help='DC 避让偏移 kHz，固定 960k 下默认 50')
     p.add_argument('--no-dc-offset', action='store_true', help='关闭 DC 避让，不推荐')
-    p.add_argument('--bw', type=float, default=DEFAULT_BW_KHZ, help='信道带宽 kHz，默认 19.5')
+    p.add_argument('--bw', type=float, default=DEFAULT_BW_KHZ, help='信道带宽 kHz，默认 35.0')
     p.add_argument('--cs-threshold', type=float, default=DEFAULT_RSSI_THRESHOLD_DB, help='RSSI 接收门控打开阈值 dB，默认 -45；不直接参与 FSK 0/1 判决')
     p.add_argument('--no-rssi-gate', action='store_true', help='关闭 RSSI 接收门控；关闭后持续解码，便于对比调试')
     p.add_argument('--rssi-hyst', type=float, default=DEFAULT_RSSI_HYST_DB, help='RSSI 门控释放迟滞 dB，默认 4，即 OFF=threshold-4dB')
@@ -1407,7 +1434,7 @@ def _u9():
     p.add_argument('--rssi-confirm-blocks', type=int, default=1, help='RSSI 连续超过门限多少块后打开接收，默认 1')
     p.add_argument('--rssi-offset', type=float, default=0.0, help='RSSI 显示偏移 dB')
     p.add_argument('--afc-off', action='store_true', help='关闭导前码 AFC，仅保留基础 DDC')
-    p.add_argument('--afc-max', type=float, default=DEFAULT_AFC_MAX_HZ, help='AFC 最大修正范围 Hz，默认 ±1500')
+    p.add_argument('--afc-max', type=float, default=DEFAULT_AFC_MAX_HZ, help='AFC 最大修正范围 Hz，默认 ±8000')
     p.add_argument('--afc-gain', type=float, default=0.45, help='AFC 环路增益，默认 0.45，建议 0.25~0.6')
     p.add_argument('--keep-afc-after-packet', action='store_true', help='RSSI门控释放后保留AFC补偿；默认每次接收完成后复位AFC，避免补偿累积带偏下一包')
     p.add_argument('--my-km', type=float, default=None, help='全局默认当前位置公里标 km；多线路建议使用 --route-km 或运行时按 K 按线路设置')
@@ -1433,6 +1460,8 @@ def _u9():
     _g2['ppm'] = a.ppm
     _g2['sample_rate_k'] = 960
     _g2['cs_threshold'] = a.cs_threshold
+    _g2['dc_offset_hz'] = dc_hz
+    _g2['bw_khz'] = a.bw
     src = _A2(TCP_HOST, TCP_PORT, hw_tune, sample_rate, block_size, dc_offset=dc_hz)
     frontend = _D7(sample_rate, halfband_n, mid_rate, dc_offset=dc_hz, user_offset=0.0, bw=a.bw * 1000.0, rssi_offset=a.rssi_offset, afc_enable=not a.afc_off, afc_max_hz=a.afc_max, afc_gain=a.afc_gain)
     route_km_map = _A0._a3(a.route_km)
