@@ -134,7 +134,7 @@ sdr_lbj.py
 
 ### Windows / Linux
 
-先启动 `rtl_tcp`：
+先将RTL-SDR通过USB连接到电脑再启动 `rtl_tcp`：
 
 ```bash
 rtl_tcp -a 127.0.0.1 -p 1234
