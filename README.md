@@ -127,7 +127,7 @@ mkdir sdr_lbj
 将本项目 Python 主程序下载后放入手机存储中的 `sdr_lbj` 文件夹。建议将主程序文件名固定为：
 
 ```text
-sdr_lbj.py
+rtl_sdr_lbj_receiver.py
 ```
 
 ## 基本运行
@@ -143,7 +143,7 @@ rtl_tcp -a 127.0.0.1 -p 1234
 然后另开一个终端运行本程序：
 
 ```bash
-python3 sdr_lbj.py -f 821.2375 -g 15.7 -p 1
+python3 rtl_sdr_lbj_receiver.py -f 821.2375 -g 15.7 -p 1
 ```
 
 ### Android / Termux
@@ -153,9 +153,9 @@ python3 sdr_lbj.py -f 821.2375 -g 15.7 -p 1
 ```bash
 cd ~/storage/shared/sdr_lbj
 # FC0013 SDR 推荐执行以下命令，增益最大约为 15.7 dB
-python3 sdr_lbj.py -f 821.2375 -g 15.7 -p 1
+python3 rtl_sdr_lbj_receiver.py -f 821.2375 -g 15.7 -p 1
 # 标准 RTL-SDR / R820T 推荐执行以下命令，增益设置为最大
-python3 sdr_lbj.py -f 821.2375 -g 49.6 -p 1
+python3 rtl_sdr_lbj_receiver.py -f 821.2375 -g 49.6 -p 1
 ```
 执行后会弹窗询问是否运行驱动连接到 SDR 硬件，选择允许即可。
 
@@ -181,7 +181,7 @@ PK:821.237500M Δ:+0.0k -35dB
 基本启动：
 
 ```bash
-python3 sdr_lbj.py -f 821.2375
+python3 rtl_sdr_lbj_receiver.py -f 821.2375
 ```
 
 ### 常用参数
@@ -221,13 +221,13 @@ python3 sdr_lbj.py -f 821.2375
 示例：
 
 ```bash
-python3 sdr_lbj.py -f 821.2375 --route-km 京沪线=0123.4KM
+python3 rtl_sdr_lbj_receiver.py -f 821.2375 --route-km 京沪线=0123.4KM
 ```
 
 多线路可以重复填写：
 
 ```bash
-python3 sdr_lbj.py -f 821.2375 \
+python3 rtl_sdr_lbj_receiver.py -f 821.2375 \
   --route-km 京沪线=0123.4KM \
   --route-km 沪昆线=0456.7KM
 ```
